@@ -59,7 +59,7 @@ class Old_Post_Notice {
 		return array(
 			'threshold_value'      => 12,
 			'threshold_unit'       => 'months',    // days, months, years
-			'message'              => 'This post was published {time_ago} and is kept for archival purposes. Some information may be outdated.',
+			'message'              => 'This article was published {time_ago} and is kept for archival purposes. Some information may be outdated.',
 			'position'             => 'before',    // before, after
 			'border_color'         => '#d63638',
 			'text_color'           => '#d63638',
@@ -162,7 +162,7 @@ class Old_Post_Notice {
 
 		// Build notice
 		$message = $this->process_message( $post_time );
-		$notice  = '<div class="opn-notice" role="note" aria-label="' . esc_attr__( 'Old post notice', 'old-post-notice' ) . '">'
+		$notice  = '<div class="opn-notice" role="note" aria-label="' . esc_attr__( 'Old article notice', 'old-post-notice' ) . '">'
 		         . wp_kses_post( $message )
 		         . '</div>';
 
@@ -298,7 +298,7 @@ class Old_Post_Notice {
 						<td>
 							<label>
 								<input type="checkbox" name="<?php echo self::OPTION_KEY; ?>[enabled]" value="1" <?php checked( $s['enabled'] ); ?> id="opn-enabled" />
-								<?php esc_html_e( 'Show old post notices on the front end', 'old-post-notice' ); ?>
+								<?php esc_html_e( 'Show notices on old articles', 'old-post-notice' ); ?>
 							</label>
 						</td>
 					</tr>
@@ -316,7 +316,7 @@ class Old_Post_Notice {
 								<option value="months" <?php selected( $s['threshold_unit'], 'months' ); ?>><?php esc_html_e( 'months', 'old-post-notice' ); ?></option>
 								<option value="years" <?php selected( $s['threshold_unit'], 'years' ); ?>><?php esc_html_e( 'years', 'old-post-notice' ); ?></option>
 							</select>
-							<p class="description"><?php esc_html_e( 'Posts older than this will show the notice.', 'old-post-notice' ); ?></p>
+							<p class="description"><?php esc_html_e( 'Articles older than this will show the notice.', 'old-post-notice' ); ?></p>
 						</td>
 					</tr>
 
@@ -432,7 +432,7 @@ class Old_Post_Notice {
 									</option>
 								<?php endforeach; ?>
 							</select>
-							<p class="description"><?php esc_html_e( 'Hold Ctrl/Cmd to select multiple. Posts in these categories will never show the notice.', 'old-post-notice' ); ?></p>
+							<p class="description"><?php esc_html_e( 'Hold Ctrl/Cmd to select multiple. Articles in these categories will never show the notice.', 'old-post-notice' ); ?></p>
 						</td>
 					</tr>
 
@@ -550,7 +550,7 @@ class Old_Post_Notice {
 		?>
 		<label>
 			<input type="checkbox" name="opn_disable" value="1" <?php checked( $disabled ); ?> />
-			<?php esc_html_e( 'Disable notice on this post', 'old-post-notice' ); ?>
+			<?php esc_html_e( 'Disable notice on this article', 'old-post-notice' ); ?>
 		</label>
 		<p class="description" style="margin-top: 6px;">
 			<?php esc_html_e( 'Check this for evergreen content that stays relevant regardless of age.', 'old-post-notice' ); ?>
