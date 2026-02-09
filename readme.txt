@@ -1,7 +1,7 @@
-=== Old Post Notice ===
+=== Old Article Notice ===
 Contributors: maggiemcguire
 Donate link: https://venmo.com/maggie-mcguire-18
-Tags: old post, archive, notice, warning, outdated, news
+Tags: old article, archive, notice, warning, outdated, news
 Requires at least: 5.0
 Tested up to: 6.7
 Requires PHP: 7.4
@@ -9,7 +9,7 @@ Stable tag: 1.0.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Automatically displays a configurable notice on posts older than a set threshold, so readers know when content may be outdated.
+Displays a configurable notice on old articles so readers know when content may be outdated. Built for news sites, blogs, and documentation.
 
 == Description ==
 
@@ -17,7 +17,7 @@ Every publisher has the same problem: old articles stick around forever, and rea
 
 I run a [small-town newspaper](https://moabsunnews.com) in Moab, Utah. One day I realized someone was making decisions based on a three-year-old article about water rates. So I wrote 13 lines of PHP to slap a warning on anything over a year old. It worked. Then I thought: every news site, blog, and documentation site has this exact problem. So I turned those 13 lines into a real plugin.
 
-**Old Post Notice** adds a clear, customizable warning to posts that are past their freshness date. You control the message, the look, the timing, and which posts get it. It's one file, zero JavaScript on the front end, and it just works.
+**Old Article Notice** adds a clear, customizable warning to articles that are past their freshness date. You control the message, the look, the timing, and which posts get it. It's one file, zero JavaScript on the front end, and it just works.
 
 = Features =
 
@@ -52,9 +52,9 @@ Example: "This article was published {time_ago} on {date}. Some information may 
 
 == Installation ==
 
-1. Upload the `old-post-notice` folder to `/wp-content/plugins/`
+1. Upload the `old-article-notice` folder to `/wp-content/plugins/`
 2. Activate the plugin through the Plugins menu
-3. Go to **Settings > Old Post Notice** to configure
+3. Go to **Settings > Old Article Notice** to configure
 
 That's it. Three steps and your readers will always know when they're looking at old content.
 
@@ -62,7 +62,7 @@ That's it. Three steps and your readers will always know when they're looking at
 
 = How do I disable the notice on a specific post? =
 
-When editing a post, look for the "Old Post Notice" meta box in the sidebar. Check "Disable notice on this post." This is perfect for evergreen content — guides, reference pages, anything that stays accurate regardless of age.
+When editing a post, look for the "Old Article Notice" meta box in the sidebar. Check "Disable notice on this article." This is perfect for evergreen content — guides, reference pages, anything that stays accurate regardless of age.
 
 = Can I use HTML in the notice message? =
 

@@ -1,14 +1,14 @@
 <?php
 /**
- * Plugin Name: Old Post Notice
- * Plugin URI: https://maggie-mcguire.com/old-post-notice
- * Description: Automatically displays a configurable warning on posts older than a set threshold. Helps readers know when content may be outdated.
+ * Plugin Name: Old Article Notice
+ * Plugin URI: https://maggie-mcguire.com/old-article-notice
+ * Description: Displays a configurable notice on old articles so readers know when content may be outdated. Built for news sites, blogs, and documentation.
  * Version: 1.0.0
  * Author: Maggie McGuire
  * Author URI: https://maggie-mcguire.com
  * License: GPL v2 or later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
- * Text Domain: old-post-notice
+ * Text Domain: old-article-notice
  * Requires at least: 5.0
  * Tested up to: 6.7
  * Requires PHP: 7.4
@@ -18,7 +18,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-class Old_Post_Notice {
+class Old_Article_Notice {
 
 	const OPTION_KEY = 'opn_settings';
 
@@ -169,7 +169,7 @@ class Old_Post_Notice {
 
 		// Build notice
 		$message = $this->replace_tags( $this->settings['message'], $post_time );
-		$notice  = '<div class="opn-notice" role="note" aria-label="' . esc_attr__( 'Old article notice', 'old-post-notice' ) . '">'
+		$notice  = '<div class="opn-notice" role="note" aria-label="' . esc_attr__( 'Old article notice', 'old-article-notice' ) . '">'
 		         . wp_kses_post( $message )
 		         . '</div>';
 
@@ -220,10 +220,10 @@ class Old_Post_Notice {
 
 	public function add_settings_page() {
 		add_options_page(
-			__( 'Old Post Notice', 'old-post-notice' ),
-			__( 'Old Post Notice', 'old-post-notice' ),
+			__( 'Old Article Notice', 'old-article-notice' ),
+			__( 'Old Article Notice', 'old-article-notice' ),
 			'manage_options',
-			'old-post-notice',
+			'old-article-notice',
 			array( $this, 'render_settings_page' )
 		);
 	}
@@ -276,7 +276,7 @@ class Old_Post_Notice {
 	}
 
 	public function enqueue_admin_assets( $hook ) {
-		if ( 'settings_page_old-post-notice' !== $hook ) {
+		if ( 'settings_page_old-article-notice' !== $hook ) {
 			return;
 		}
 		wp_enqueue_style( 'wp-color-picker' );
@@ -302,7 +302,7 @@ class Old_Post_Notice {
 		</style>
 
 		<div class="wrap">
-			<h1><?php esc_html_e( 'Old Post Notice', 'old-post-notice' ); ?></h1>
+			<h1><?php esc_html_e( 'Old Article Notice', 'old-article-notice' ); ?></h1>
 
 			<form method="post" action="options.php" id="opn-settings-form">
 				<?php settings_fields( 'opn_settings_group' ); ?>
@@ -316,11 +316,11 @@ class Old_Post_Notice {
 
 					<!-- Enable -->
 					<tr>
-						<th scope="row"><?php esc_html_e( 'Enable', 'old-post-notice' ); ?></th>
+						<th scope="row"><?php esc_html_e( 'Enable', 'old-article-notice' ); ?></th>
 						<td>
 							<label>
 								<input type="checkbox" name="<?php echo self::OPTION_KEY; ?>[enabled]" value="1" <?php checked( $s['enabled'] ); ?> id="opn-enabled" />
-								<?php esc_html_e( 'Show notices on old articles', 'old-post-notice' ); ?>
+								<?php esc_html_e( 'Show notices on old articles', 'old-article-notice' ); ?>
 							</label>
 						</td>
 					</tr>
@@ -328,30 +328,30 @@ class Old_Post_Notice {
 					<!-- Threshold -->
 					<tr>
 						<th scope="row">
-							<label for="opn-threshold-value"><?php esc_html_e( 'Age Threshold', 'old-post-notice' ); ?></label>
+							<label for="opn-threshold-value"><?php esc_html_e( 'Age Threshold', 'old-article-notice' ); ?></label>
 						</th>
 						<td>
 							<input type="number" id="opn-threshold-value" name="<?php echo self::OPTION_KEY; ?>[threshold_value]"
 							       value="<?php echo esc_attr( $s['threshold_value'] ); ?>" min="1" max="999" style="width:70px;" />
 							<select name="<?php echo self::OPTION_KEY; ?>[threshold_unit]" id="opn-threshold-unit">
-								<option value="days" <?php selected( $s['threshold_unit'], 'days' ); ?>><?php esc_html_e( 'days', 'old-post-notice' ); ?></option>
-								<option value="months" <?php selected( $s['threshold_unit'], 'months' ); ?>><?php esc_html_e( 'months', 'old-post-notice' ); ?></option>
-								<option value="years" <?php selected( $s['threshold_unit'], 'years' ); ?>><?php esc_html_e( 'years', 'old-post-notice' ); ?></option>
+								<option value="days" <?php selected( $s['threshold_unit'], 'days' ); ?>><?php esc_html_e( 'days', 'old-article-notice' ); ?></option>
+								<option value="months" <?php selected( $s['threshold_unit'], 'months' ); ?>><?php esc_html_e( 'months', 'old-article-notice' ); ?></option>
+								<option value="years" <?php selected( $s['threshold_unit'], 'years' ); ?>><?php esc_html_e( 'years', 'old-article-notice' ); ?></option>
 							</select>
-							<p class="description"><?php esc_html_e( 'Articles older than this will show the notice.', 'old-post-notice' ); ?></p>
+							<p class="description"><?php esc_html_e( 'Articles older than this will show the notice.', 'old-article-notice' ); ?></p>
 						</td>
 					</tr>
 
 					<!-- Message -->
 					<tr>
 						<th scope="row">
-							<label for="opn-message"><?php esc_html_e( 'Notice Message', 'old-post-notice' ); ?></label>
+							<label for="opn-message"><?php esc_html_e( 'Notice Message', 'old-article-notice' ); ?></label>
 						</th>
 						<td>
 							<textarea id="opn-message" name="<?php echo self::OPTION_KEY; ?>[message]"
 							          rows="3" class="large-text" style="max-width:500px;"><?php echo esc_textarea( $s['message'] ); ?></textarea>
 							<p class="description">
-								<?php esc_html_e( 'Available tags:', 'old-post-notice' ); ?>
+								<?php esc_html_e( 'Available tags:', 'old-article-notice' ); ?>
 								<code>{time_ago}</code> <code>{years}</code> <code>{months}</code> <code>{days}</code> <code>{date}</code>
 							</p>
 						</td>
@@ -359,49 +359,49 @@ class Old_Post_Notice {
 
 					<!-- Position -->
 					<tr>
-						<th scope="row"><?php esc_html_e( 'Position', 'old-post-notice' ); ?></th>
+						<th scope="row"><?php esc_html_e( 'Position', 'old-article-notice' ); ?></th>
 						<td>
 							<label style="margin-right:20px;">
 								<input type="radio" name="<?php echo self::OPTION_KEY; ?>[position]" value="before" <?php checked( $s['position'], 'before' ); ?> />
-								<?php esc_html_e( 'Before content', 'old-post-notice' ); ?>
+								<?php esc_html_e( 'Before content', 'old-article-notice' ); ?>
 							</label>
 							<label>
 								<input type="radio" name="<?php echo self::OPTION_KEY; ?>[position]" value="after" <?php checked( $s['position'], 'after' ); ?> />
-								<?php esc_html_e( 'After content', 'old-post-notice' ); ?>
+								<?php esc_html_e( 'After content', 'old-article-notice' ); ?>
 							</label>
 						</td>
 					</tr>
 
 					<!-- Colors -->
 					<tr>
-						<th scope="row"><?php esc_html_e( 'Appearance', 'old-post-notice' ); ?></th>
+						<th scope="row"><?php esc_html_e( 'Appearance', 'old-article-notice' ); ?></th>
 						<td>
 							<fieldset>
 								<div class="opn-color-group">
 									<div>
-										<label for="opn-border-color"><?php esc_html_e( 'Border', 'old-post-notice' ); ?></label>
+										<label for="opn-border-color"><?php esc_html_e( 'Border', 'old-article-notice' ); ?></label>
 										<input type="text" id="opn-border-color" name="<?php echo self::OPTION_KEY; ?>[border_color]"
 										       value="<?php echo esc_attr( $s['border_color'] ); ?>" class="opn-color-picker" data-default-color="#d63638" />
 									</div>
 									<div>
-										<label for="opn-text-color"><?php esc_html_e( 'Text', 'old-post-notice' ); ?></label>
+										<label for="opn-text-color"><?php esc_html_e( 'Text', 'old-article-notice' ); ?></label>
 										<input type="text" id="opn-text-color" name="<?php echo self::OPTION_KEY; ?>[text_color]"
 										       value="<?php echo esc_attr( $s['text_color'] ); ?>" class="opn-color-picker" data-default-color="#d63638" />
 									</div>
 									<div>
-										<label for="opn-bg-color"><?php esc_html_e( 'Background', 'old-post-notice' ); ?></label>
+										<label for="opn-bg-color"><?php esc_html_e( 'Background', 'old-article-notice' ); ?></label>
 										<input type="text" id="opn-bg-color" name="<?php echo self::OPTION_KEY; ?>[background_color]"
 										       value="<?php echo esc_attr( $s['background_color'] ); ?>" class="opn-color-picker" data-default-color="#fef0f0" />
 									</div>
 								</div>
 								<div class="opn-number-group">
 									<div>
-										<label for="opn-border-width"><?php esc_html_e( 'Border width (px)', 'old-post-notice' ); ?></label>
+										<label for="opn-border-width"><?php esc_html_e( 'Border width (px)', 'old-article-notice' ); ?></label>
 										<input type="number" id="opn-border-width" name="<?php echo self::OPTION_KEY; ?>[border_width]"
 										       value="<?php echo esc_attr( $s['border_width'] ); ?>" min="0" max="10" style="width:60px;" />
 									</div>
 									<div>
-										<label for="opn-border-radius"><?php esc_html_e( 'Corner radius (px)', 'old-post-notice' ); ?></label>
+										<label for="opn-border-radius"><?php esc_html_e( 'Corner radius (px)', 'old-article-notice' ); ?></label>
 										<input type="number" id="opn-border-radius" name="<?php echo self::OPTION_KEY; ?>[border_radius]"
 										       value="<?php echo esc_attr( $s['border_radius'] ); ?>" min="0" max="20" style="width:60px;" />
 									</div>
@@ -412,7 +412,7 @@ class Old_Post_Notice {
 
 					<!-- Post Types -->
 					<tr>
-						<th scope="row"><?php esc_html_e( 'Post Types', 'old-post-notice' ); ?></th>
+						<th scope="row"><?php esc_html_e( 'Post Types', 'old-article-notice' ); ?></th>
 						<td>
 							<fieldset>
 								<?php foreach ( $post_types as $pt ) :
@@ -432,7 +432,7 @@ class Old_Post_Notice {
 					<!-- Excluded Categories -->
 					<tr>
 						<th scope="row">
-							<label for="opn-excluded-cats"><?php esc_html_e( 'Exclude Categories', 'old-post-notice' ); ?></label>
+							<label for="opn-excluded-cats"><?php esc_html_e( 'Exclude Categories', 'old-article-notice' ); ?></label>
 						</th>
 						<td>
 							<select id="opn-excluded-cats" name="<?php echo self::OPTION_KEY; ?>[excluded_categories][]"
@@ -444,7 +444,7 @@ class Old_Post_Notice {
 									</option>
 								<?php endforeach; ?>
 							</select>
-							<p class="description"><?php esc_html_e( 'Hold Ctrl/Cmd to select multiple. Articles in these categories will never show the notice.', 'old-post-notice' ); ?></p>
+							<p class="description"><?php esc_html_e( 'Hold Ctrl/Cmd to select multiple. Articles in these categories will never show the notice.', 'old-article-notice' ); ?></p>
 						</td>
 					</tr>
 
@@ -456,7 +456,7 @@ class Old_Post_Notice {
 
 				<!-- Right column: live preview -->
 				<div id="opn-preview-col">
-					<h3 style="margin-top:30px;"><?php esc_html_e( 'Preview', 'old-post-notice' ); ?></h3>
+					<h3 style="margin-top:30px;"><?php esc_html_e( 'Preview', 'old-article-notice' ); ?></h3>
 					<div id="opn-preview-wrap">
 						<div id="opn-preview-notice" style="
 							border:<?php echo esc_attr( $s['border_width'] ); ?>px solid <?php echo esc_attr( $s['border_color'] ); ?>;
@@ -473,7 +473,7 @@ class Old_Post_Notice {
 							<?php echo wp_kses_post( $this->replace_tags( $s['message'] ) ); ?>
 						</div>
 						<div class="opn-sample-content">
-							<div class="opn-sample-label"><?php esc_html_e( 'Sample article content', 'old-post-notice' ); ?></div>
+							<div class="opn-sample-label"><?php esc_html_e( 'Sample article content', 'old-article-notice' ); ?></div>
 							<p style="margin:0 0 0.8em;">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</p>
 							<p style="margin:0;">Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.</p>
 						</div>
@@ -531,7 +531,7 @@ class Old_Post_Notice {
 		foreach ( $post_types as $pt ) {
 			add_meta_box(
 				'opn_disable_notice',
-				__( 'Old Post Notice', 'old-post-notice' ),
+				__( 'Old Article Notice', 'old-article-notice' ),
 				array( $this, 'render_meta_box' ),
 				$pt,
 				'side',
@@ -546,10 +546,10 @@ class Old_Post_Notice {
 		?>
 		<label>
 			<input type="checkbox" name="opn_disable" value="1" <?php checked( $disabled ); ?> />
-			<?php esc_html_e( 'Disable notice on this article', 'old-post-notice' ); ?>
+			<?php esc_html_e( 'Disable notice on this article', 'old-article-notice' ); ?>
 		</label>
 		<p class="description" style="margin-top:6px;">
-			<?php esc_html_e( 'Check this for evergreen content that stays relevant regardless of age.', 'old-post-notice' ); ?>
+			<?php esc_html_e( 'Check this for evergreen content that stays relevant regardless of age.', 'old-article-notice' ); ?>
 		</p>
 		<?php
 	}
@@ -589,8 +589,8 @@ class Old_Post_Notice {
 }
 
 // Initialize
-Old_Post_Notice::instance();
+Old_Article_Notice::instance();
 
 // Lifecycle hooks
-register_activation_hook( __FILE__, array( 'Old_Post_Notice', 'activate' ) );
-register_uninstall_hook( __FILE__, array( 'Old_Post_Notice', 'uninstall' ) );
+register_activation_hook( __FILE__, array( 'Old_Article_Notice', 'activate' ) );
+register_uninstall_hook( __FILE__, array( 'Old_Article_Notice', 'uninstall' ) );
