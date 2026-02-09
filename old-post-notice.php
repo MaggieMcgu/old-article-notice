@@ -20,7 +20,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class Old_Post_Notice {
 
-	const VERSION = '1.0.0';
 	const OPTION_KEY = 'opn_settings';
 
 	private static $instance = null;
@@ -34,10 +33,13 @@ class Old_Post_Notice {
 	}
 
 	private function __construct() {
+		// Settings loaded once per request — safe for a singleton since
+		// nothing else modifies this option mid-request.
 		$this->settings = $this->get_settings();
 
 		// Frontend
 		add_filter( 'the_content', array( $this, 'maybe_show_notice' ) );
+		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_frontend_css' ) );
 
 		// Admin
 		add_action( 'admin_menu', array( $this, 'add_settings_page' ) );
@@ -47,9 +49,6 @@ class Old_Post_Notice {
 		// Per-post meta box
 		add_action( 'add_meta_boxes', array( $this, 'add_meta_box' ) );
 		add_action( 'save_post', array( $this, 'save_meta_box' ) );
-
-		// Frontend CSS
-		add_action( 'wp_head', array( $this, 'print_frontend_css' ) );
 	}
 
 	/**
@@ -99,26 +98,32 @@ class Old_Post_Notice {
 	}
 
 	/**
-	 * Process message template tags.
+	 * Replace template tags in a message string.
+	 *
+	 * @param string   $message        The message with template tags.
+	 * @param int|null $post_timestamp Unix timestamp of the post, or null for sample data.
+	 * @return string
 	 */
-	private function process_message( $post_timestamp ) {
-		$age_seconds = time() - $post_timestamp;
-		$message     = $this->settings['message'];
-
-		$years  = floor( $age_seconds / YEAR_IN_SECONDS );
-		$months = floor( $age_seconds / ( 30 * DAY_IN_SECONDS ) );
-		$days   = floor( $age_seconds / DAY_IN_SECONDS );
-
-		// Human-readable time ago
-		$time_ago = human_time_diff( $post_timestamp, time() ) . ' ago';
-
-		$replacements = array(
-			'{years}'    => $years,
-			'{months}'   => $months,
-			'{days}'     => $days,
-			'{time_ago}' => $time_ago,
-			'{date}'     => get_the_date( '', get_the_ID() ),
-		);
+	private function replace_tags( $message, $post_timestamp = null ) {
+		if ( null === $post_timestamp ) {
+			// Sample data for the settings page preview
+			$replacements = array(
+				'{time_ago}' => '2 years ago',
+				'{years}'    => '2',
+				'{months}'   => '25',
+				'{days}'     => '760',
+				'{date}'     => 'March 15, 2024',
+			);
+		} else {
+			$age_seconds = time() - $post_timestamp;
+			$replacements = array(
+				'{time_ago}' => human_time_diff( $post_timestamp, time() ) . ' ago',
+				'{years}'    => (string) floor( $age_seconds / YEAR_IN_SECONDS ),
+				'{months}'   => (string) floor( $age_seconds / ( 30 * DAY_IN_SECONDS ) ),
+				'{days}'     => (string) floor( $age_seconds / DAY_IN_SECONDS ),
+				'{date}'     => get_the_date( '', get_the_ID() ),
+			);
+		}
 
 		return str_replace( array_keys( $replacements ), array_values( $replacements ), $message );
 	}
@@ -146,7 +151,9 @@ class Old_Post_Notice {
 			return $content;
 		}
 
-		// Category exclusions
+		// Category exclusions (uses the built-in 'category' taxonomy —
+		// custom post types with different taxonomies should use the
+		// per-post disable checkbox instead)
 		$excluded = (array) $this->settings['excluded_categories'];
 		if ( ! empty( $excluded ) && has_category( $excluded ) ) {
 			return $content;
@@ -161,7 +168,7 @@ class Old_Post_Notice {
 		}
 
 		// Build notice
-		$message = $this->process_message( $post_time );
+		$message = $this->replace_tags( $this->settings['message'], $post_time );
 		$notice  = '<div class="opn-notice" role="note" aria-label="' . esc_attr__( 'Old article notice', 'old-post-notice' ) . '">'
 		         . wp_kses_post( $message )
 		         . '</div>';
@@ -174,35 +181,37 @@ class Old_Post_Notice {
 	}
 
 	/**
-	 * Print frontend CSS in <head>.
+	 * Enqueue frontend CSS via WordPress dependency system.
 	 */
-	public function print_frontend_css() {
+	public function enqueue_frontend_css() {
 		if ( ! is_singular() ) {
 			return;
 		}
 
 		$s = $this->settings;
-		$border_color = sanitize_hex_color( $s['border_color'] ) ?: '#d63638';
-		$text_color   = sanitize_hex_color( $s['text_color'] ) ?: '#d63638';
-		$bg_color     = sanitize_hex_color( $s['background_color'] ) ?: '#fef0f0';
-		$border_width = absint( $s['border_width'] );
+		$border_color  = sanitize_hex_color( $s['border_color'] ) ?: '#d63638';
+		$text_color    = sanitize_hex_color( $s['text_color'] ) ?: '#d63638';
+		$bg_color      = sanitize_hex_color( $s['background_color'] ) ?: '#fef0f0';
+		$border_width  = absint( $s['border_width'] );
 		$border_radius = absint( $s['border_radius'] );
 
-		echo '<style id="opn-style">'
-		   . '.opn-notice {'
-		   . 'border: ' . $border_width . 'px solid ' . $border_color . ';'
-		   . 'padding: 12px 16px;'
-		   . 'color: ' . $text_color . ';'
-		   . 'background: ' . $bg_color . ';'
-		   . 'font-weight: 600;'
-		   . 'text-align: center;'
-		   . 'margin-bottom: 1.5em;'
-		   . 'border-radius: ' . $border_radius . 'px;'
-		   . 'font-size: 0.9em;'
-		   . 'line-height: 1.5;'
-		   . '}'
-		   . '.opn-notice a { color: ' . $text_color . '; text-decoration: underline; }'
-		   . '</style>';
+		$css = '.opn-notice {'
+		     . 'border:' . $border_width . 'px solid ' . $border_color . ';'
+		     . 'padding:12px 16px;'
+		     . 'color:' . $text_color . ';'
+		     . 'background:' . $bg_color . ';'
+		     . 'font-weight:600;'
+		     . 'text-align:center;'
+		     . 'margin-bottom:1.5em;'
+		     . 'border-radius:' . $border_radius . 'px;'
+		     . 'font-size:0.9em;'
+		     . 'line-height:1.5;'
+		     . '}'
+		     . '.opn-notice a{color:' . $text_color . ';text-decoration:underline;}';
+
+		wp_register_style( 'opn-notice', false );
+		wp_enqueue_style( 'opn-notice' );
+		wp_add_inline_style( 'opn-notice', $css );
 	}
 
 	// =========================================================================
@@ -279,16 +288,29 @@ class Old_Post_Notice {
 		$post_types = get_post_types( array( 'public' => true ), 'objects' );
 		$categories = get_categories( array( 'hide_empty' => false ) );
 		?>
+		<style>
+			#opn-admin-wrap { display:flex; gap:30px; align-items:flex-start; }
+			#opn-settings-col { flex:1; max-width:700px; }
+			#opn-preview-col { flex:0 0 380px; position:sticky; top:40px; }
+			#opn-preview-wrap { background:#fff; padding:20px; border:1px solid #ddd; border-radius:6px; }
+			.opn-color-group { display:flex; gap:24px; flex-wrap:wrap; margin-bottom:12px; }
+			.opn-color-group label,
+			.opn-number-group label { display:block; margin-bottom:4px; font-weight:600; font-size:12px; }
+			.opn-number-group { display:flex; gap:24px; flex-wrap:wrap; }
+			.opn-sample-content { color:#666; font-size:13px; line-height:1.7; }
+			.opn-sample-label { font-size:11px; text-transform:uppercase; letter-spacing:0.5px; color:#999; margin-bottom:8px; }
+		</style>
+
 		<div class="wrap">
 			<h1><?php esc_html_e( 'Old Post Notice', 'old-post-notice' ); ?></h1>
 
 			<form method="post" action="options.php" id="opn-settings-form">
 				<?php settings_fields( 'opn_settings_group' ); ?>
 
-				<div id="opn-admin-wrap" style="display: flex; gap: 30px; align-items: flex-start;">
+				<div id="opn-admin-wrap">
 
 				<!-- Left column: settings -->
-				<div style="flex: 1; max-width: 700px;">
+				<div id="opn-settings-col">
 
 				<table class="form-table" role="presentation">
 
@@ -310,7 +332,7 @@ class Old_Post_Notice {
 						</th>
 						<td>
 							<input type="number" id="opn-threshold-value" name="<?php echo self::OPTION_KEY; ?>[threshold_value]"
-							       value="<?php echo esc_attr( $s['threshold_value'] ); ?>" min="1" max="999" style="width: 70px;" />
+							       value="<?php echo esc_attr( $s['threshold_value'] ); ?>" min="1" max="999" style="width:70px;" />
 							<select name="<?php echo self::OPTION_KEY; ?>[threshold_unit]" id="opn-threshold-unit">
 								<option value="days" <?php selected( $s['threshold_unit'], 'days' ); ?>><?php esc_html_e( 'days', 'old-post-notice' ); ?></option>
 								<option value="months" <?php selected( $s['threshold_unit'], 'months' ); ?>><?php esc_html_e( 'months', 'old-post-notice' ); ?></option>
@@ -327,7 +349,7 @@ class Old_Post_Notice {
 						</th>
 						<td>
 							<textarea id="opn-message" name="<?php echo self::OPTION_KEY; ?>[message]"
-							          rows="3" class="large-text" style="max-width: 500px;"><?php echo esc_textarea( $s['message'] ); ?></textarea>
+							          rows="3" class="large-text" style="max-width:500px;"><?php echo esc_textarea( $s['message'] ); ?></textarea>
 							<p class="description">
 								<?php esc_html_e( 'Available tags:', 'old-post-notice' ); ?>
 								<code>{time_ago}</code> <code>{years}</code> <code>{months}</code> <code>{days}</code> <code>{date}</code>
@@ -339,7 +361,7 @@ class Old_Post_Notice {
 					<tr>
 						<th scope="row"><?php esc_html_e( 'Position', 'old-post-notice' ); ?></th>
 						<td>
-							<label style="margin-right: 20px;">
+							<label style="margin-right:20px;">
 								<input type="radio" name="<?php echo self::OPTION_KEY; ?>[position]" value="before" <?php checked( $s['position'], 'before' ); ?> />
 								<?php esc_html_e( 'Before content', 'old-post-notice' ); ?>
 							</label>
@@ -355,43 +377,33 @@ class Old_Post_Notice {
 						<th scope="row"><?php esc_html_e( 'Appearance', 'old-post-notice' ); ?></th>
 						<td>
 							<fieldset>
-								<div style="display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 12px;">
+								<div class="opn-color-group">
 									<div>
-										<label for="opn-border-color" style="display: block; margin-bottom: 4px; font-weight: 600; font-size: 12px;">
-											<?php esc_html_e( 'Border', 'old-post-notice' ); ?>
-										</label>
+										<label for="opn-border-color"><?php esc_html_e( 'Border', 'old-post-notice' ); ?></label>
 										<input type="text" id="opn-border-color" name="<?php echo self::OPTION_KEY; ?>[border_color]"
 										       value="<?php echo esc_attr( $s['border_color'] ); ?>" class="opn-color-picker" data-default-color="#d63638" />
 									</div>
 									<div>
-										<label for="opn-text-color" style="display: block; margin-bottom: 4px; font-weight: 600; font-size: 12px;">
-											<?php esc_html_e( 'Text', 'old-post-notice' ); ?>
-										</label>
+										<label for="opn-text-color"><?php esc_html_e( 'Text', 'old-post-notice' ); ?></label>
 										<input type="text" id="opn-text-color" name="<?php echo self::OPTION_KEY; ?>[text_color]"
 										       value="<?php echo esc_attr( $s['text_color'] ); ?>" class="opn-color-picker" data-default-color="#d63638" />
 									</div>
 									<div>
-										<label for="opn-bg-color" style="display: block; margin-bottom: 4px; font-weight: 600; font-size: 12px;">
-											<?php esc_html_e( 'Background', 'old-post-notice' ); ?>
-										</label>
+										<label for="opn-bg-color"><?php esc_html_e( 'Background', 'old-post-notice' ); ?></label>
 										<input type="text" id="opn-bg-color" name="<?php echo self::OPTION_KEY; ?>[background_color]"
 										       value="<?php echo esc_attr( $s['background_color'] ); ?>" class="opn-color-picker" data-default-color="#fef0f0" />
 									</div>
 								</div>
-								<div style="display: flex; gap: 24px; flex-wrap: wrap;">
+								<div class="opn-number-group">
 									<div>
-										<label for="opn-border-width" style="display: block; margin-bottom: 4px; font-weight: 600; font-size: 12px;">
-											<?php esc_html_e( 'Border width (px)', 'old-post-notice' ); ?>
-										</label>
+										<label for="opn-border-width"><?php esc_html_e( 'Border width (px)', 'old-post-notice' ); ?></label>
 										<input type="number" id="opn-border-width" name="<?php echo self::OPTION_KEY; ?>[border_width]"
-										       value="<?php echo esc_attr( $s['border_width'] ); ?>" min="0" max="10" style="width: 60px;" />
+										       value="<?php echo esc_attr( $s['border_width'] ); ?>" min="0" max="10" style="width:60px;" />
 									</div>
 									<div>
-										<label for="opn-border-radius" style="display: block; margin-bottom: 4px; font-weight: 600; font-size: 12px;">
-											<?php esc_html_e( 'Corner radius (px)', 'old-post-notice' ); ?>
-										</label>
+										<label for="opn-border-radius"><?php esc_html_e( 'Corner radius (px)', 'old-post-notice' ); ?></label>
 										<input type="number" id="opn-border-radius" name="<?php echo self::OPTION_KEY; ?>[border_radius]"
-										       value="<?php echo esc_attr( $s['border_radius'] ); ?>" min="0" max="20" style="width: 60px;" />
+										       value="<?php echo esc_attr( $s['border_radius'] ); ?>" min="0" max="20" style="width:60px;" />
 									</div>
 								</div>
 							</fieldset>
@@ -406,7 +418,7 @@ class Old_Post_Notice {
 								<?php foreach ( $post_types as $pt ) :
 									if ( 'attachment' === $pt->name ) continue;
 								?>
-									<label style="display: block; margin-bottom: 4px;">
+									<label style="display:block; margin-bottom:4px;">
 										<input type="checkbox" name="<?php echo self::OPTION_KEY; ?>[post_types][]"
 										       value="<?php echo esc_attr( $pt->name ); ?>"
 										       <?php checked( in_array( $pt->name, (array) $s['post_types'], true ) ); ?> />
@@ -424,7 +436,7 @@ class Old_Post_Notice {
 						</th>
 						<td>
 							<select id="opn-excluded-cats" name="<?php echo self::OPTION_KEY; ?>[excluded_categories][]"
-							        multiple="multiple" style="min-width: 300px; min-height: 120px;">
+							        multiple="multiple" style="min-width:300px; min-height:120px;">
 								<?php foreach ( $categories as $cat ) : ?>
 									<option value="<?php echo esc_attr( $cat->term_id ); ?>"
 									        <?php echo in_array( $cat->term_id, (array) $s['excluded_categories'], true ) ? 'selected' : ''; ?>>
@@ -440,30 +452,30 @@ class Old_Post_Notice {
 
 				<?php submit_button(); ?>
 
-				</div><!-- /left column -->
+				</div><!-- /settings col -->
 
 				<!-- Right column: live preview -->
-				<div style="flex: 0 0 380px; position: sticky; top: 40px;">
-					<h3 style="margin-top: 30px;"><?php esc_html_e( 'Preview', 'old-post-notice' ); ?></h3>
-					<div id="opn-preview-wrap" style="background: #fff; padding: 20px; border: 1px solid #ddd; border-radius: 6px;">
+				<div id="opn-preview-col">
+					<h3 style="margin-top:30px;"><?php esc_html_e( 'Preview', 'old-post-notice' ); ?></h3>
+					<div id="opn-preview-wrap">
 						<div id="opn-preview-notice" style="
-							border: <?php echo esc_attr( $s['border_width'] ); ?>px solid <?php echo esc_attr( $s['border_color'] ); ?>;
-							padding: 12px 16px;
-							color: <?php echo esc_attr( $s['text_color'] ); ?>;
-							background: <?php echo esc_attr( $s['background_color'] ); ?>;
-							font-weight: 600;
-							text-align: center;
-							margin-bottom: 1em;
-							border-radius: <?php echo esc_attr( $s['border_radius'] ); ?>px;
-							font-size: 0.9em;
-							line-height: 1.5;
+							border:<?php echo esc_attr( $s['border_width'] ); ?>px solid <?php echo esc_attr( $s['border_color'] ); ?>;
+							padding:12px 16px;
+							color:<?php echo esc_attr( $s['text_color'] ); ?>;
+							background:<?php echo esc_attr( $s['background_color'] ); ?>;
+							font-weight:600;
+							text-align:center;
+							margin-bottom:1em;
+							border-radius:<?php echo esc_attr( $s['border_radius'] ); ?>px;
+							font-size:0.9em;
+							line-height:1.5;
 						">
-							<?php echo wp_kses_post( $this->preview_message() ); ?>
+							<?php echo wp_kses_post( $this->replace_tags( $s['message'] ) ); ?>
 						</div>
-						<div style="color: #666; font-size: 13px; line-height: 1.7;">
-							<div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #999; margin-bottom: 8px;">Sample article content</div>
-							<p style="margin: 0 0 0.8em;">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</p>
-							<p style="margin: 0;">Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.</p>
+						<div class="opn-sample-content">
+							<div class="opn-sample-label"><?php esc_html_e( 'Sample article content', 'old-post-notice' ); ?></div>
+							<p style="margin:0 0 0.8em;">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</p>
+							<p style="margin:0;">Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.</p>
 						</div>
 					</div>
 				</div>
@@ -475,13 +487,11 @@ class Old_Post_Notice {
 
 		<script>
 		jQuery(function($) {
-			// Initialize color pickers with live preview
 			$('.opn-color-picker').wpColorPicker({
 				change: function() { setTimeout(updatePreview, 50); },
 				clear: function() { setTimeout(updatePreview, 50); }
 			});
 
-			// Live preview updates
 			$('#opn-message, #opn-border-width, #opn-border-radius, #opn-threshold-value, #opn-threshold-unit').on('input change', updatePreview);
 
 			function updatePreview() {
@@ -499,7 +509,6 @@ class Old_Post_Notice {
 					'border-radius': borderRadius + 'px'
 				});
 
-				// Update message text with sample values
 				var msg = $('#opn-message').val();
 				msg = msg.replace('{time_ago}', '2 years ago');
 				msg = msg.replace('{years}', '2');
@@ -511,19 +520,6 @@ class Old_Post_Notice {
 		});
 		</script>
 		<?php
-	}
-
-	/**
-	 * Generate preview message with sample data.
-	 */
-	private function preview_message() {
-		$msg = $this->settings['message'];
-		$msg = str_replace( '{time_ago}', '2 years ago', $msg );
-		$msg = str_replace( '{years}', '2', $msg );
-		$msg = str_replace( '{months}', '25', $msg );
-		$msg = str_replace( '{days}', '760', $msg );
-		$msg = str_replace( '{date}', 'March 15, 2024', $msg );
-		return $msg;
 	}
 
 	// =========================================================================
@@ -552,7 +548,7 @@ class Old_Post_Notice {
 			<input type="checkbox" name="opn_disable" value="1" <?php checked( $disabled ); ?> />
 			<?php esc_html_e( 'Disable notice on this article', 'old-post-notice' ); ?>
 		</label>
-		<p class="description" style="margin-top: 6px;">
+		<p class="description" style="margin-top:6px;">
 			<?php esc_html_e( 'Check this for evergreen content that stays relevant regardless of age.', 'old-post-notice' ); ?>
 		</p>
 		<?php
@@ -577,8 +573,14 @@ class Old_Post_Notice {
 	}
 
 	// =========================================================================
-	// Uninstall
+	// Activation / Uninstall
 	// =========================================================================
+
+	public static function activate() {
+		if ( false === get_option( self::OPTION_KEY ) ) {
+			add_option( self::OPTION_KEY, ( new self() )->defaults() );
+		}
+	}
 
 	public static function uninstall() {
 		delete_option( self::OPTION_KEY );
@@ -589,5 +591,6 @@ class Old_Post_Notice {
 // Initialize
 Old_Post_Notice::instance();
 
-// Clean up on uninstall
+// Lifecycle hooks
+register_activation_hook( __FILE__, array( 'Old_Post_Notice', 'activate' ) );
 register_uninstall_hook( __FILE__, array( 'Old_Post_Notice', 'uninstall' ) );

@@ -1,5 +1,6 @@
 === Old Post Notice ===
 Contributors: maggiemcguire
+Donate link: https://venmo.com/maggie-mcguire-18
 Tags: old post, archive, notice, warning, outdated, news
 Requires at least: 5.0
 Tested up to: 6.7
@@ -74,6 +75,12 @@ No. The notice is pure HTML/CSS — no front-end JavaScript, no render-blocking 
 1. Settings page with live preview
 2. Notice displayed on a post
 3. Per-post disable checkbox in the editor
+
+== Support Development ==
+
+If this plugin is useful to you, consider buying me a coffee:
+
+[Venmo: @maggie-mcguire-18](https://venmo.com/maggie-mcguire-18)
 
 == Changelog ==
 
