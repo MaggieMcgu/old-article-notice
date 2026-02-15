@@ -2,7 +2,7 @@
 
 A WordPress plugin that displays a configurable notice on old articles so readers know when content may be outdated. Built for news sites, blogs, and documentation.
 
-**Version:** 1.1.0 | **Requires:** WordPress 5.0+ / PHP 7.4+ | **License:** GPL v2
+**Version:** 1.2.0 | **Requires:** WordPress 5.0+ / PHP 7.4+ | **License:** GPL v2
 
 ## The Problem
 
@@ -13,7 +13,8 @@ Old articles stick around forever, and readers don't always check the date. I ru
 ## Features
 
 - **Set your threshold** — days, months, or years
-- **Write your own message** — template tags like `{time_ago}` and `{date}` make each notice specific
+- **Modified-date aware** — skip the notice on recently updated articles, even if originally published years ago
+- **Write your own message** — template tags like `{time_ago}`, `{date}`, and `{updated_date}` make each notice specific
 - **Coverage links** — automatically point readers to your category or tag archive for newer coverage on the same topic
 - **SEO-aware** — respects Yoast SEO and Rank Math primary term settings
 - **Full styling control** — border color, text color, background, border width, corner radius
@@ -21,6 +22,7 @@ Old articles stick around forever, and readers don't always check the date. I ru
 - **Post type support** — posts, pages, custom post types
 - **Category exclusions** — skip categories that don't age (obituaries, evergreen pages)
 - **Per-post override** — disable with a checkbox on any individual article
+- **Developer filters** — three hooks for customizing behavior without forking
 - **Lightweight** — no external dependencies, no front-end JavaScript, no performance impact
 
 ## Installation
@@ -41,6 +43,7 @@ Use these in your notice message:
 | `{months}` | Number of months since publication |
 | `{days}` | Number of days since publication |
 | `{date}` | Original publication date |
+| `{updated_date}` | Date the article was last modified |
 | `{coverage_link}` | Link to newer coverage (requires Coverage Link enabled) |
 | `{term_name}` | Primary category/tag name (requires Coverage Link enabled) |
 
@@ -56,14 +59,14 @@ This article was published {time_ago} and is kept for archival purposes. Some in
 This article was published {time_ago}. {coverage_link}
 ```
 
-**Direct:**
+**With updated date:**
 ```
-Heads up — this is {years}-year-old content. Check our {term_name} section for the latest.
+Originally published {date}, last updated {updated_date}. Some information may be outdated.
 ```
 
 ## Coverage Link
 
-New in v1.1.0. When enabled, `{coverage_link}` automatically generates a link to the article's primary category or tag archive page, so readers can find newer coverage on the same topic.
+When enabled, `{coverage_link}` automatically generates a link to the article's primary category or tag archive page, so readers can find newer coverage on the same topic.
 
 **How it works:**
 
@@ -72,17 +75,72 @@ New in v1.1.0. When enabled, `{coverage_link}` automatically generates a link to
 3. Set your link text (use `{term_name}` for the category/tag name)
 4. Add `{coverage_link}` to your notice message
 
-The plugin picks the article's primary term from your chosen taxonomy. If Yoast SEO or Rank Math has set a primary term, that's used. Otherwise it falls back to the first assigned term. If the article has no matching terms, the tag quietly resolves to nothing — no broken output.
+The plugin picks the article's primary term from your chosen taxonomy. If Yoast SEO or Rank Math has set a primary term, that's used. Otherwise it falls back to the first assigned term. If the article has no matching terms, the tag quietly resolves to nothing -- no broken output.
 
 **Example output:**
 
 > This article was published 2 years ago and is kept for archival purposes. Some information may be outdated. [See our latest Local Government coverage &rarr;](https://example.com/category/local-government/)
 
+## Modified Date Awareness
+
+Enable "Use last modified date" in settings and the plugin checks the article's *last modified* date instead of its published date. An article from 2020 that was updated last week won't trigger the notice.
+
+This is ideal for evergreen content like guides, reference pages, or documentation that gets periodic refreshes.
+
+## Developer Filters
+
+Three filters let you customize behavior without modifying the plugin:
+
+### `opn_should_show_notice`
+
+Control whether the notice appears on a specific post.
+
+```php
+// Hide the notice on posts with a specific custom field
+add_filter( 'opn_should_show_notice', function( $show, $post_id, $age ) {
+    if ( get_post_meta( $post_id, 'still_relevant', true ) ) {
+        return false;
+    }
+    return $show;
+}, 10, 3 );
+```
+
+### `opn_notice_html`
+
+Modify the full notice HTML before output.
+
+```php
+// Add a custom class based on article age
+add_filter( 'opn_notice_html', function( $html, $post_id, $settings ) {
+    $age = time() - get_the_time( 'U', $post_id );
+    if ( $age > 2 * YEAR_IN_SECONDS ) {
+        $html = str_replace( 'opn-notice', 'opn-notice opn-very-old', $html );
+    }
+    return $html;
+}, 10, 3 );
+```
+
+### `opn_primary_term`
+
+Override which term is used for coverage links.
+
+```php
+// Always use the term with the most posts (broadest coverage page)
+add_filter( 'opn_primary_term', function( $term, $post_id, $taxonomy ) {
+    $terms = get_the_terms( $post_id, $taxonomy );
+    if ( $terms && ! is_wp_error( $terms ) ) {
+        usort( $terms, function( $a, $b ) { return $b->count - $a->count; } );
+        return $terms[0];
+    }
+    return $term;
+}, 10, 3 );
+```
+
 ## Who Is This For?
 
-- **News publishers** — your archived coverage should tell readers it's archived
-- **Bloggers** — that tutorial from 2019 might not work anymore
-- **Documentation sites** — old docs are worse than no docs if people follow outdated instructions
+- **News publishers** -- your archived coverage should tell readers it's archived
+- **Bloggers** -- that tutorial from 2019 might not work anymore
+- **Documentation sites** -- old docs are worse than no docs if people follow outdated instructions
 - **Anyone** who keeps old content published and cares about their readers
 
 ## FAQ
@@ -91,13 +149,16 @@ The plugin picks the article's primary term from your chosen taxonomy. If Yoast 
 Yes. Each post has an "Old Article Notice" meta box in the sidebar with a disable checkbox. Perfect for evergreen content.
 
 **Can I use HTML in the message?**
-Yes — links, bold, italic, line breaks are all supported.
+Yes -- links, bold, italic, line breaks are all supported.
 
 **Does this add JavaScript to my front end?**
 No. The notice is pure HTML and inline CSS. Zero performance impact.
 
 **Does this work with custom post types?**
 Yes. Any public post type shows up in settings.
+
+**What if my article was recently updated?**
+Enable "Use last modified date" in settings. The plugin will check when the article was last modified instead of when it was published. A 5-year-old article updated last month won't get a stale warning.
 
 ## Support
 
@@ -107,8 +168,15 @@ More tools and projects at [maggie-mcguire.com](https://maggie-mcguire.com).
 
 ## Changelog
 
+### 1.2.0
+- "Use last modified date" setting -- recently updated articles skip the notice
+- `{updated_date}` template tag
+- `opn_should_show_notice` filter -- programmatically control notice visibility
+- `opn_notice_html` filter -- modify notice HTML before output
+- `opn_primary_term` filter -- override term selection for coverage links
+
 ### 1.1.0
-- Coverage Link feature — automatically link readers to newer coverage via category/tag archives
+- Coverage Link feature -- automatically link readers to newer coverage via category/tag archives
 - `{coverage_link}` and `{term_name}` template tags
 - Taxonomy picker (categories, tags, or custom)
 - Yoast SEO and Rank Math primary term support

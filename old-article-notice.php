@@ -3,7 +3,7 @@
  * Plugin Name: Old Article Notice
  * Plugin URI: https://maggie-mcguire.com/old-article-notice
  * Description: Displays a configurable notice on old articles so readers know when content may be outdated. Built for news sites, blogs, and documentation.
- * Version: 1.1.0
+ * Version: 1.2.0
  * Author: Maggie McGuire
  * Author URI: https://maggie-mcguire.com
  * License: GPL v2 or later
@@ -68,6 +68,7 @@ class Old_Article_Notice {
 			'post_types'           => array( 'post' ),
 			'excluded_categories'  => array(),
 			'enabled'              => true,
+			'use_modified_date'    => false,
 			'coverage_link'        => false,
 			'coverage_taxonomy'    => 'category',
 			'coverage_link_text'   => 'See our latest {term_name} coverage &rarr;',
@@ -111,11 +112,12 @@ class Old_Article_Notice {
 		if ( null === $post_timestamp ) {
 			// Sample data for the settings page preview
 			$replacements = array(
-				'{time_ago}' => '2 years ago',
-				'{years}'    => '2',
-				'{months}'   => '25',
-				'{days}'     => '760',
-				'{date}'     => 'March 15, 2024',
+				'{time_ago}'      => '2 years ago',
+				'{years}'         => '2',
+				'{months}'        => '25',
+				'{days}'          => '760',
+				'{date}'          => 'March 15, 2024',
+				'{updated_date}'  => 'January 10, 2026',
 			);
 
 			// Sample coverage link for preview
@@ -129,12 +131,14 @@ class Old_Article_Notice {
 			}
 		} else {
 			$age_seconds = time() - $post_timestamp;
+			$modified_date = get_the_modified_date( '', get_the_ID() );
 			$replacements = array(
-				'{time_ago}' => human_time_diff( $post_timestamp, time() ) . ' ago',
-				'{years}'    => (string) floor( $age_seconds / YEAR_IN_SECONDS ),
-				'{months}'   => (string) floor( $age_seconds / ( 30 * DAY_IN_SECONDS ) ),
-				'{days}'     => (string) floor( $age_seconds / DAY_IN_SECONDS ),
-				'{date}'     => get_the_date( '', get_the_ID() ),
+				'{time_ago}'      => human_time_diff( $post_timestamp, time() ) . ' ago',
+				'{years}'         => (string) floor( $age_seconds / YEAR_IN_SECONDS ),
+				'{months}'        => (string) floor( $age_seconds / ( 30 * DAY_IN_SECONDS ) ),
+				'{days}'          => (string) floor( $age_seconds / DAY_IN_SECONDS ),
+				'{date}'          => get_the_date( '', get_the_ID() ),
+				'{updated_date}'  => $modified_date ?: get_the_date( '', get_the_ID() ),
 			);
 
 			// Coverage link
@@ -143,6 +147,16 @@ class Old_Article_Notice {
 
 			if ( $this->settings['coverage_link'] ) {
 				$term = $this->get_primary_term( get_the_ID() );
+
+				/**
+				 * Filter the primary term used for the coverage link.
+				 *
+				 * @param WP_Term|null $term     The selected primary term.
+				 * @param int          $post_id  The current post ID.
+				 * @param string       $taxonomy The configured taxonomy.
+				 */
+				$term = apply_filters( 'opn_primary_term', $term, get_the_ID(), $this->settings['coverage_taxonomy'] );
+
 				if ( $term ) {
 					$replacements['{term_name}'] = $term->name;
 					$link_text = str_replace( '{term_name}', esc_html( $term->name ), $this->settings['coverage_link_text'] );
@@ -228,11 +242,30 @@ class Old_Article_Notice {
 			return $content;
 		}
 
-		// Check age
+		// Check age — use modified date if enabled, otherwise published date
 		$post_time = get_the_time( 'U' );
-		$age       = time() - $post_time;
+		$check_time = $post_time;
+		if ( $this->settings['use_modified_date'] ) {
+			$modified_time = get_the_modified_time( 'U' );
+			if ( $modified_time && $modified_time > $post_time ) {
+				$check_time = $modified_time;
+			}
+		}
+		$age = time() - $check_time;
 
 		if ( $age < $this->threshold_seconds() ) {
+			return $content;
+		}
+
+		/**
+		 * Filter whether the notice should be shown on this post.
+		 *
+		 * @param bool $show    Whether to show the notice. Default true.
+		 * @param int  $post_id The current post ID.
+		 * @param int  $age     Age in seconds (from published or modified date).
+		 */
+		$show = apply_filters( 'opn_should_show_notice', true, get_the_ID(), $age );
+		if ( ! $show ) {
 			return $content;
 		}
 
@@ -241,6 +274,15 @@ class Old_Article_Notice {
 		$notice  = '<div class="opn-notice" role="note" aria-label="' . esc_attr__( 'Old article notice', 'old-article-notice' ) . '">'
 		         . wp_kses_post( $message )
 		         . '</div>';
+
+		/**
+		 * Filter the full notice HTML before it's added to the content.
+		 *
+		 * @param string $notice  The notice HTML.
+		 * @param int    $post_id The current post ID.
+		 * @param array  $settings The plugin settings.
+		 */
+		$notice = apply_filters( 'opn_notice_html', $notice, get_the_ID(), $this->settings );
 
 		if ( 'after' === $this->settings['position'] ) {
 			return $content . $notice;
@@ -341,6 +383,9 @@ class Old_Article_Notice {
 			$clean['excluded_categories'] = array_map( 'absint', $input['excluded_categories'] );
 		}
 
+		// Modified date setting
+		$clean['use_modified_date']  = ! empty( $input['use_modified_date'] );
+
 		// Coverage link settings
 		$clean['coverage_link']      = ! empty( $input['coverage_link'] );
 		$clean['coverage_taxonomy']  = sanitize_key( $input['coverage_taxonomy'] ?? 'category' );
@@ -419,6 +464,21 @@ class Old_Article_Notice {
 						</td>
 					</tr>
 
+					<!-- Use Modified Date -->
+					<tr>
+						<th scope="row"><?php esc_html_e( 'Modified Date', 'old-article-notice' ); ?></th>
+						<td>
+							<label>
+								<input type="checkbox" name="<?php echo self::OPTION_KEY; ?>[use_modified_date]" value="1"
+								       <?php checked( $s['use_modified_date'] ); ?> id="opn-use-modified" />
+								<?php esc_html_e( 'Use last modified date instead of published date', 'old-article-notice' ); ?>
+							</label>
+							<p class="description">
+								<?php esc_html_e( 'When enabled, articles that have been recently updated won\'t show the notice even if they were originally published long ago. Useful for evergreen content that gets periodic updates.', 'old-article-notice' ); ?>
+							</p>
+						</td>
+					</tr>
+
 					<!-- Message -->
 					<tr>
 						<th scope="row">
@@ -430,7 +490,7 @@ class Old_Article_Notice {
 							<p class="description">
 								<?php esc_html_e( 'Available tags:', 'old-article-notice' ); ?>
 								<code>{time_ago}</code> <code>{years}</code> <code>{months}</code> <code>{days}</code> <code>{date}</code>
-								<code>{coverage_link}</code> <code>{term_name}</code>
+								<code>{updated_date}</code> <code>{coverage_link}</code> <code>{term_name}</code>
 							</p>
 						</td>
 					</tr>
@@ -677,6 +737,7 @@ class Old_Article_Notice {
 				msg = msg.replace('{months}', '25');
 				msg = msg.replace('{days}', '760');
 				msg = msg.replace('{date}', 'March 15, 2024');
+				msg = msg.replace('{updated_date}', 'January 10, 2026');
 
 				// Coverage link preview
 				if ($('#opn-coverage-link').is(':checked')) {

@@ -5,7 +5,7 @@ Tags: old article, archive, notice, warning, outdated, news
 Requires at least: 5.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 1.1.0
+Stable tag: 1.2.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -27,8 +27,10 @@ I run a [small-town newspaper](https://moabsunnews.com) in Moab, Utah. One day I
 * **Live preview** — see exactly what your notice looks like as you design it. No save-refresh-squint cycle.
 * **Pick your post types** — posts, pages, custom post types. Show it where it matters, hide it where it doesn't.
 * **Exclude categories** — obituaries don't go stale. Neither do "About Us" pages. Skip what doesn't need a warning.
+* **Modified-date aware** — skip the notice on articles that have been recently updated, even if originally published years ago. Perfect for evergreen content that gets periodic refreshes.
 * **Coverage links** — automatically point readers to your category or tag archive for newer coverage on the same topic. Works with any taxonomy including custom ones.
 * **SEO-aware** — respects Yoast SEO and Rank Math primary term settings when picking which category or tag to link to.
+* **Developer filters** — `opn_should_show_notice`, `opn_notice_html`, and `opn_primary_term` let developers customize behavior without forking.
 * **Per-post override** — got an evergreen article that's old but still accurate? Disable the notice with a checkbox. Done.
 * **Before or after content** — put it where it makes sense for your layout
 * **Lightweight** — no external dependencies, no front-end JavaScript, no performance impact. Your PageSpeed score won't even notice.
@@ -49,6 +51,7 @@ Use these in your notice message to make it dynamic:
 * `{months}` — number of months since publication
 * `{days}` — number of days since publication
 * `{date}` — the original publication date
+* `{updated_date}` — the date the article was last modified (falls back to published date)
 * `{coverage_link}` — a link to newer coverage (requires Coverage Link to be enabled in settings)
 * `{term_name}` — the name of the article's primary category or tag (requires Coverage Link)
 
@@ -107,6 +110,13 @@ If it saves you time or makes your site better for your readers, consider buying
 More tools and projects at [maggie-mcguire.com](https://maggie-mcguire.com).
 
 == Changelog ==
+
+= 1.2.0 =
+* New: "Use last modified date" setting — recently updated articles skip the notice even if originally published long ago
+* New: `{updated_date}` template tag — show when the article was last modified
+* New: `opn_should_show_notice` filter — programmatically control whether the notice appears on any post
+* New: `opn_notice_html` filter — modify the full notice HTML before output
+* New: `opn_primary_term` filter — override which term is used for coverage links
 
 = 1.1.0 =
 * New: Coverage Link feature — automatically link readers to the article's category or tag archive for newer coverage
