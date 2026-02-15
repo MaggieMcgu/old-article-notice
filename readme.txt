@@ -5,7 +5,7 @@ Tags: old article, archive, notice, warning, outdated, news
 Requires at least: 5.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 1.0.0
+Stable tag: 1.1.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -27,6 +27,8 @@ I run a [small-town newspaper](https://moabsunnews.com) in Moab, Utah. One day I
 * **Live preview** — see exactly what your notice looks like as you design it. No save-refresh-squint cycle.
 * **Pick your post types** — posts, pages, custom post types. Show it where it matters, hide it where it doesn't.
 * **Exclude categories** — obituaries don't go stale. Neither do "About Us" pages. Skip what doesn't need a warning.
+* **Coverage links** — automatically point readers to your category or tag archive for newer coverage on the same topic. Works with any taxonomy including custom ones.
+* **SEO-aware** — respects Yoast SEO and Rank Math primary term settings when picking which category or tag to link to.
 * **Per-post override** — got an evergreen article that's old but still accurate? Disable the notice with a checkbox. Done.
 * **Before or after content** — put it where it makes sense for your layout
 * **Lightweight** — no external dependencies, no front-end JavaScript, no performance impact. Your PageSpeed score won't even notice.
@@ -47,8 +49,12 @@ Use these in your notice message to make it dynamic:
 * `{months}` — number of months since publication
 * `{days}` — number of days since publication
 * `{date}` — the original publication date
+* `{coverage_link}` — a link to newer coverage (requires Coverage Link to be enabled in settings)
+* `{term_name}` — the name of the article's primary category or tag (requires Coverage Link)
 
 Example: "This article was published {time_ago} on {date}. Some information may no longer be current."
+
+Example with coverage link: "This article was published {time_ago}. {coverage_link}"
 
 == Installation ==
 
@@ -76,6 +82,10 @@ Yes. Any public post type registered on your site will show up in the settings. 
 
 Nope. The notice is pure HTML and CSS. Nothing to render-block, nothing to slow down your page. Your visitors (and Google) will never know it's there until they see an old article.
 
+= How does the Coverage Link feature work? =
+
+Enable it under Settings > Old Article Notice > Coverage Link. Pick a taxonomy (categories, tags, or custom), write your link text using `{term_name}`, then add `{coverage_link}` to your notice message. When an old article has a term from that taxonomy, readers get a direct link to the archive page where they can find newer coverage on the same topic. If the article has no matching terms, the tag is silently removed.
+
 = I run a news site. Any tips? =
 
 That's exactly what I built this for. Set your threshold to something reasonable (we use 365 days), exclude categories that don't age (obituaries, "About Us" pages), and use a message that's honest without being alarming. Something like: "This article is over {time_ago} old and is kept for archival purposes. Some details may have changed."
@@ -97,6 +107,14 @@ If it saves you time or makes your site better for your readers, consider buying
 More tools and projects at [maggie-mcguire.com](https://maggie-mcguire.com).
 
 == Changelog ==
+
+= 1.1.0 =
+* New: Coverage Link feature — automatically link readers to the article's category or tag archive for newer coverage
+* New: `{coverage_link}` template tag — inserts a linked call-to-action pointing to the term archive
+* New: `{term_name}` template tag — inserts the article's primary category/tag name
+* New: Choose any public taxonomy (categories, tags, or custom) for coverage links
+* New: Respects Yoast SEO and Rank Math primary term selection
+* New: Coverage Link settings with show/hide toggle and live preview support
 
 = 1.0.0 =
 * Initial release

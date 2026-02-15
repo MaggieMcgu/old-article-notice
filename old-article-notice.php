@@ -3,7 +3,7 @@
  * Plugin Name: Old Article Notice
  * Plugin URI: https://maggie-mcguire.com/old-article-notice
  * Description: Displays a configurable notice on old articles so readers know when content may be outdated. Built for news sites, blogs, and documentation.
- * Version: 1.0.0
+ * Version: 1.1.0
  * Author: Maggie McGuire
  * Author URI: https://maggie-mcguire.com
  * License: GPL v2 or later
@@ -68,6 +68,9 @@ class Old_Article_Notice {
 			'post_types'           => array( 'post' ),
 			'excluded_categories'  => array(),
 			'enabled'              => true,
+			'coverage_link'        => false,
+			'coverage_taxonomy'    => 'category',
+			'coverage_link_text'   => 'See our latest {term_name} coverage &rarr;',
 		);
 	}
 
@@ -114,6 +117,16 @@ class Old_Article_Notice {
 				'{days}'     => '760',
 				'{date}'     => 'March 15, 2024',
 			);
+
+			// Sample coverage link for preview
+			if ( $this->settings['coverage_link'] ) {
+				$sample_link_text = str_replace( '{term_name}', 'Local Government', $this->settings['coverage_link_text'] );
+				$replacements['{coverage_link}'] = '<a href="#">' . esc_html( $sample_link_text ) . '</a>';
+				$replacements['{term_name}']     = 'Local Government';
+			} else {
+				$replacements['{coverage_link}'] = '';
+				$replacements['{term_name}']     = '';
+			}
 		} else {
 			$age_seconds = time() - $post_timestamp;
 			$replacements = array(
@@ -123,9 +136,65 @@ class Old_Article_Notice {
 				'{days}'     => (string) floor( $age_seconds / DAY_IN_SECONDS ),
 				'{date}'     => get_the_date( '', get_the_ID() ),
 			);
+
+			// Coverage link
+			$replacements['{coverage_link}'] = '';
+			$replacements['{term_name}']     = '';
+
+			if ( $this->settings['coverage_link'] ) {
+				$term = $this->get_primary_term( get_the_ID() );
+				if ( $term ) {
+					$replacements['{term_name}'] = $term->name;
+					$link_text = str_replace( '{term_name}', esc_html( $term->name ), $this->settings['coverage_link_text'] );
+					$term_url  = get_term_link( $term );
+					if ( ! is_wp_error( $term_url ) ) {
+						$replacements['{coverage_link}'] = '<a href="' . esc_url( $term_url ) . '">' . wp_kses_post( $link_text ) . '</a>';
+					}
+				}
+			}
 		}
 
 		return str_replace( array_keys( $replacements ), array_values( $replacements ), $message );
+	}
+
+	/**
+	 * Get the primary term for coverage link.
+	 *
+	 * Returns the first term from the configured taxonomy. If Yoast or
+	 * Rank Math is active and has set a primary term, that's used instead.
+	 */
+	private function get_primary_term( $post_id ) {
+		$taxonomy = $this->settings['coverage_taxonomy'];
+
+		if ( ! taxonomy_exists( $taxonomy ) ) {
+			return null;
+		}
+
+		// Check for Yoast primary term
+		$primary_term_id = get_post_meta( $post_id, '_yoast_wpseo_primary_' . $taxonomy, true );
+		if ( $primary_term_id ) {
+			$term = get_term( (int) $primary_term_id, $taxonomy );
+			if ( $term && ! is_wp_error( $term ) ) {
+				return $term;
+			}
+		}
+
+		// Check for Rank Math primary term
+		$rm_primary = get_post_meta( $post_id, 'rank_math_primary_' . $taxonomy, true );
+		if ( $rm_primary ) {
+			$term = get_term( (int) $rm_primary, $taxonomy );
+			if ( $term && ! is_wp_error( $term ) ) {
+				return $term;
+			}
+		}
+
+		// Fall back to first assigned term
+		$terms = get_the_terms( $post_id, $taxonomy );
+		if ( ! empty( $terms ) && ! is_wp_error( $terms ) ) {
+			return $terms[0];
+		}
+
+		return null;
 	}
 
 	/**
@@ -272,6 +341,14 @@ class Old_Article_Notice {
 			$clean['excluded_categories'] = array_map( 'absint', $input['excluded_categories'] );
 		}
 
+		// Coverage link settings
+		$clean['coverage_link']      = ! empty( $input['coverage_link'] );
+		$clean['coverage_taxonomy']  = sanitize_key( $input['coverage_taxonomy'] ?? 'category' );
+		if ( ! taxonomy_exists( $clean['coverage_taxonomy'] ) ) {
+			$clean['coverage_taxonomy'] = 'category';
+		}
+		$clean['coverage_link_text'] = wp_kses_post( $input['coverage_link_text'] ?? 'See our latest {term_name} coverage &rarr;' );
+
 		return $clean;
 	}
 
@@ -353,6 +430,7 @@ class Old_Article_Notice {
 							<p class="description">
 								<?php esc_html_e( 'Available tags:', 'old-article-notice' ); ?>
 								<code>{time_ago}</code> <code>{years}</code> <code>{months}</code> <code>{days}</code> <code>{date}</code>
+								<code>{coverage_link}</code> <code>{term_name}</code>
 							</p>
 						</td>
 					</tr>
@@ -450,6 +528,82 @@ class Old_Article_Notice {
 
 				</table>
 
+				<h2 style="margin-top:2em;"><?php esc_html_e( 'Coverage Link', 'old-article-notice' ); ?></h2>
+				<p class="description" style="margin-bottom:1em;">
+					<?php esc_html_e( 'Automatically link readers to newer coverage by pointing them to the article\'s category or tag archive.', 'old-article-notice' ); ?>
+				</p>
+
+				<table class="form-table" role="presentation">
+
+					<!-- Enable Coverage Link -->
+					<tr>
+						<th scope="row"><?php esc_html_e( 'Enable', 'old-article-notice' ); ?></th>
+						<td>
+							<label>
+								<input type="checkbox" name="<?php echo self::OPTION_KEY; ?>[coverage_link]" value="1"
+								       <?php checked( $s['coverage_link'] ); ?> id="opn-coverage-link" />
+								<?php esc_html_e( 'Add a link to newer coverage in the notice', 'old-article-notice' ); ?>
+							</label>
+						</td>
+					</tr>
+
+					<!-- Taxonomy -->
+					<tr class="opn-coverage-row">
+						<th scope="row">
+							<label for="opn-coverage-taxonomy"><?php esc_html_e( 'Link to', 'old-article-notice' ); ?></label>
+						</th>
+						<td>
+							<?php
+							$taxonomies = get_taxonomies( array( 'public' => true, 'show_ui' => true ), 'objects' );
+							?>
+							<select id="opn-coverage-taxonomy" name="<?php echo self::OPTION_KEY; ?>[coverage_taxonomy]">
+								<?php foreach ( $taxonomies as $tax ) : ?>
+									<option value="<?php echo esc_attr( $tax->name ); ?>"
+									        <?php selected( $s['coverage_taxonomy'], $tax->name ); ?>>
+										<?php echo esc_html( $tax->labels->singular_name ); ?>
+										(<?php echo esc_html( $tax->name ); ?>)
+									</option>
+								<?php endforeach; ?>
+							</select>
+							<p class="description">
+								<?php esc_html_e( 'The article\'s primary term from this taxonomy will be used for the link.', 'old-article-notice' ); ?>
+							</p>
+						</td>
+					</tr>
+
+					<!-- Link Text -->
+					<tr class="opn-coverage-row">
+						<th scope="row">
+							<label for="opn-coverage-link-text"><?php esc_html_e( 'Link Text', 'old-article-notice' ); ?></label>
+						</th>
+						<td>
+							<input type="text" id="opn-coverage-link-text"
+							       name="<?php echo self::OPTION_KEY; ?>[coverage_link_text]"
+							       value="<?php echo esc_attr( $s['coverage_link_text'] ); ?>"
+							       class="large-text" style="max-width:500px;" />
+							<p class="description">
+								<?php esc_html_e( 'Use {term_name} for the category/tag name.', 'old-article-notice' ); ?>
+							</p>
+						</td>
+					</tr>
+
+					<!-- Usage hint -->
+					<tr class="opn-coverage-row">
+						<th scope="row"><?php esc_html_e( 'How to use', 'old-article-notice' ); ?></th>
+						<td>
+							<p class="description">
+								<?php esc_html_e( 'Add {coverage_link} to your notice message above. It will be replaced with the linked text.', 'old-article-notice' ); ?><br />
+								<?php esc_html_e( 'You can also use {term_name} directly in the notice message for just the name without a link.', 'old-article-notice' ); ?>
+							</p>
+							<p class="description" style="margin-top:8px;">
+								<strong><?php esc_html_e( 'Example message:', 'old-article-notice' ); ?></strong><br />
+								<code>This article was published {time_ago}. {coverage_link}</code>
+							</p>
+						</td>
+					</tr>
+
+				</table>
+
 				<?php submit_button(); ?>
 
 				</div><!-- /settings col -->
@@ -492,7 +646,15 @@ class Old_Article_Notice {
 				clear: function() { setTimeout(updatePreview, 50); }
 			});
 
-			$('#opn-message, #opn-border-width, #opn-border-radius, #opn-threshold-value, #opn-threshold-unit').on('input change', updatePreview);
+			$('#opn-message, #opn-border-width, #opn-border-radius, #opn-threshold-value, #opn-threshold-unit, #opn-coverage-link, #opn-coverage-link-text').on('input change', updatePreview);
+
+			// Show/hide coverage settings
+			function toggleCoverageRows() {
+				var enabled = $('#opn-coverage-link').is(':checked');
+				$('.opn-coverage-row').toggle(enabled);
+			}
+			$('#opn-coverage-link').on('change', toggleCoverageRows);
+			toggleCoverageRows();
 
 			function updatePreview() {
 				var $notice = $('#opn-preview-notice');
@@ -515,6 +677,18 @@ class Old_Article_Notice {
 				msg = msg.replace('{months}', '25');
 				msg = msg.replace('{days}', '760');
 				msg = msg.replace('{date}', 'March 15, 2024');
+
+				// Coverage link preview
+				if ($('#opn-coverage-link').is(':checked')) {
+					var linkText = $('#opn-coverage-link-text').val() || 'See our latest {term_name} coverage &rarr;';
+					linkText = linkText.replace('{term_name}', 'Local Government');
+					msg = msg.replace('{coverage_link}', '<a href="#" style="color:' + textColor + '">' + linkText + '</a>');
+					msg = msg.replace('{term_name}', 'Local Government');
+				} else {
+					msg = msg.replace('{coverage_link}', '');
+					msg = msg.replace('{term_name}', '');
+				}
+
 				$notice.html(msg);
 			}
 		});
